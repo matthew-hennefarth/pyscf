@@ -518,7 +518,7 @@ void PBCVHF_direct_drv(void (*fdot)(), int (*intor)(),
                        int bvk_ncells, int nimgs,
                        int nkpts, int nbands, int nbasp, int comp,
                        int *sh_loc, int *cell0_ao_loc, int *shls_slice,
-                       int *dm_translation, char *ovlp_mask, int *bas_map,
+                       int *dm_translation, int8_t *ovlp_mask, int *bas_map,
                        CINTOpt *cintopt, CVHFOpt *vhfopt, int cache_size,
                        int *atm, int natm, int *bas, int nbas, double *env)
 {

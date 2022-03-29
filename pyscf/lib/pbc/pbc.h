@@ -16,6 +16,8 @@
  * Author: Qiming Sun <osirpt.sun@gmail.com>
  */
 
+#include <stdint.h>
+
 #if !defined(HAVE_DEFINED_BVKENV_H)
 #define HAVE_DEFINED_BVKENV_H
 typedef struct {
@@ -44,7 +46,7 @@ typedef struct {
         double *expLkI;
 
         // Integral mask of SupMole based on s-function overlap
-        char *ovlp_mask;
+        int8_t *ovlp_mask;
         // Integral screening condition
         double *q_cond;
         // cutoff for schwarz condtion
