@@ -61,8 +61,12 @@ class Gradients(rhf_grad.GradientsMixin):
 
     def kernel(self, displacement=None, atmlst=None, verbose=None):
         log = logger.new_logger(self, verbose)
+        if displacement is not None: 
+            self.displacement = displacement
+
         if atmlst is None:
             atmlst = self.atmlst
+        
         else:
             self.atmlst = atmlst
 
