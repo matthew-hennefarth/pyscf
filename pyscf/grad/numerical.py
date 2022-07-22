@@ -21,7 +21,7 @@ import numpy as np
 from pyscf.lib import logger, SinglePointScanner
 from pyscf.grad import rhf as rhf_grad
 
-def grad_elec(mc_grad, atmlst=None, verbose=logger.INFO):
+def grad_num(mc_grad, displacement=None, atmlst=None, verbose=logger.INFO):
     log = logger.new_logger(mc_grad, verbose)
     mol = mc_grad.mol
     if atmlst is None:
@@ -29,11 +29,16 @@ def grad_elec(mc_grad, atmlst=None, verbose=logger.INFO):
 
     de = np.zeros((len(atmlst), 3))
 
+    # This is clearly trivially parallelizable and this loop can be unraveled.
+    # I am going to leave this as it is now though and deal with
+    # parallelization later. First, tests and general debug for usage.
+
+    # TODO loop over the atmlst variables here instead
     for atomi, vec in enumerate(mol.atom_coords(unit='Bohr')):
         for dimj, dim in enumerate(vec):
             perturbed_coords = mol.atom_coords()
 
-            forward = dim + mc_grad.displacement
+            forward = dim + displacement
             perturbed_coords[atomi][dimj] = forward
 
             forward_mol = mol.set_geom_(perturbed_coords, unit="Bohr", inplace=False)
@@ -58,7 +63,7 @@ def as_scanner(grad):
 class Gradients(rhf_grad.GradientsMixin):
 
     as_scanner = as_scanner
-    grad_elec = grad_elec
+    grad_num = grad_num
 
     def __init__(self, method, displacement=0.01):
         self.displacement = displacement
@@ -81,6 +86,10 @@ class Gradients(rhf_grad.GradientsMixin):
 
         super().__init__(mc)
 
+    # Hook in to the method to dump out the displacement as well (not super necessary but nice to have..)
+    # def dump_flags(self):
+    #     pass
+
     def kernel(self, displacement=None, atmlst=None, verbose=None):
         log = logger.new_logger(self, verbose)
         if displacement is not None: 
@@ -88,9 +97,6 @@ class Gradients(rhf_grad.GradientsMixin):
 
         if atmlst is None:
             atmlst = self.atmlst
-        
-        else:
-            self.atmlst = atmlst
 
         if self.verbose >= logger.WARN:
             self.check_sanity()
@@ -98,7 +104,7 @@ class Gradients(rhf_grad.GradientsMixin):
         if self.verbose >= logger.INFO:
             self.dump_flags()
 
-        self.de = self.grad_elec(atmlst, log)
+        self.de = self.grad_num(atmlst, log)
 
         if self.mol.symmetry:
             self.de = self.symmetrize(self.de, atmlst)
