@@ -21,13 +21,37 @@ import numpy as np
 from pyscf.lib import logger, SinglePointScanner
 from pyscf.grad import rhf as rhf_grad
 
-def grad_elec(mc_grad, atmlst=None, verbose=None):
+def grad_elec(mc_grad, atmlst=None, verbose=logger.INFO):
     log = logger.new_logger(mc_grad, verbose)
     mol = mc_grad.mol
+    if atmlst is None:
+        atmlst = range(mol.natm)
+
+    de = np.zeros((len(atmlst), 3))
 
     # Generate a list of mols, and then call the energy function on each of them for parallelization
     # Then, we store all of the data in the resulting shared_gradient object which has the same dimension as the mol.atms
 
+    for atomi, vec in enumerate(mol.atom_coords()):
+        for dimj, dim in enumerate(vec):
+            perturbed_coords = mol.atom_coords().copy()
+
+            dim += mc_grad.displacement
+            perturbed_coords[atomi][dimj] = dim
+            perturbed_energy_forward = mc_grad.scanner(perturbed_coords)
+
+            dim -= 2*mc_grad.displacement
+            perturbed_coords[atomi][dimj] = dim
+            perturbed_energy_backward = mc_grad.scanner(perturbed_coords)
+
+            if (abs(perturbed_energy_forward-perturbed_energy_backward) > 0):
+                print(perturbed_energy_forward)
+                print(perturbed_energy_backward)
+                print()
+
+            de[atomi][dimj] = (perturbed_energy_forward - perturbed_energy_backward)/(2*mc_grad.displacement)
+
+    return de
 
 def as_scanner(grad):
     pass
@@ -38,7 +62,7 @@ class Gradients(rhf_grad.GradientsMixin):
     as_scanner = as_scanner
     grad_elec = grad_elec
 
-    def __init__(self, method, displacement=0.01):
+    def __init__(self, method, displacement=0.000001):
         self.displacement = displacement
 
         if isinstance(method, SinglePointScanner):
@@ -57,7 +81,7 @@ class Gradients(rhf_grad.GradientsMixin):
             raise NotImplementedError('Electronic energy scanner of %s not available' %
                                       method)
 
-        rhf_grad.GradientsMixin(mc)
+        super().__init__(mc)
 
     def kernel(self, displacement=None, atmlst=None, verbose=None):
         log = logger.new_logger(self, verbose)
@@ -76,7 +100,10 @@ class Gradients(rhf_grad.GradientsMixin):
         if self.verbose >= logger.INFO:
             self.dump_flags()
 
-        self.de = de = grad_elec(atmlst, log)
+        de = self.grad_elec(atmlst, log)
+        self.de = de + self.grad_nuc(atmlst=atmlst)
+        if self.mol.symmetry:
+            self.de = self.symmetrize(self.de, atmlst)
 
         self._finalize()
         return self.de
