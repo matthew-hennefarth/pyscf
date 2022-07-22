@@ -24,7 +24,7 @@ def setUpModule():
                 output='/dev/null',
                 atom=[['H', 0, 0, 0],
                       ['H', 0, 0, 0.8]],
-                basis='def2-svp')
+                basis='sto-3g')
 
 def tearDownModule():
     pass
@@ -32,14 +32,16 @@ def tearDownModule():
 class KnownValues(unittest.TestCase):
 
     def test_h2_hf(self):
-        hf = scf.RHF(h2)
-        hf.run()
+        hf = scf.HF(h2)
+        hf.conv_tol_grad = 1e-6
+        hf.max_cycle = 700
+        hf.kernel()
 
         numerical_method = grad.numerical.Gradients(hf)
         analytical_method = hf.nuc_grad_method()
 
         ana_g = analytical_method.kernel()
-        num_g = numerical_method.kernel()
+        num_g = numerical_method.kernel(displacement=0.001)
 
         print(num_g)
         print(ana_g)

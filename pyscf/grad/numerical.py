@@ -29,25 +29,23 @@ def grad_elec(mc_grad, atmlst=None, verbose=logger.INFO):
 
     de = np.zeros((len(atmlst), 3))
 
-    # Generate a list of mols, and then call the energy function on each of them for parallelization
-    # Then, we store all of the data in the resulting shared_gradient object which has the same dimension as the mol.atms
-
-    for atomi, vec in enumerate(mol.atom_coords()):
+    for atomi, vec in enumerate(mol.atom_coords(unit='Bohr')):
         for dimj, dim in enumerate(vec):
-            perturbed_coords = mol.atom_coords().copy()
+            perturbed_coords = mol.atom_coords()
 
-            dim += mc_grad.displacement
-            perturbed_coords[atomi][dimj] = dim
-            perturbed_energy_forward = mc_grad.scanner(perturbed_coords)
+            forward = dim + mc_grad.displacement
+            perturbed_coords[atomi][dimj] = forward
 
-            dim -= 2*mc_grad.displacement
-            perturbed_coords[atomi][dimj] = dim
-            perturbed_energy_backward = mc_grad.scanner(perturbed_coords)
+            forward_mol = mol.set_geom_(perturbed_coords, unit="Bohr", inplace=False)
+            forward_mol.build()
+            perturbed_energy_forward = mc_grad.scanner(forward_mol)
 
-            if (abs(perturbed_energy_forward-perturbed_energy_backward) > 0):
-                print(perturbed_energy_forward)
-                print(perturbed_energy_backward)
-                print()
+            backward = dim - mc_grad.displacement
+            perturbed_coords[atomi][dimj] = backward
+
+            backward_mol = mol.set_geom_(perturbed_coords, unit="Bohr", inplace=False)
+            backward_mol.build()
+            perturbed_energy_backward = mc_grad.scanner(backward_mol)
 
             de[atomi][dimj] = (perturbed_energy_forward - perturbed_energy_backward)/(2*mc_grad.displacement)
 
@@ -62,7 +60,7 @@ class Gradients(rhf_grad.GradientsMixin):
     as_scanner = as_scanner
     grad_elec = grad_elec
 
-    def __init__(self, method, displacement=0.000001):
+    def __init__(self, method, displacement=0.01):
         self.displacement = displacement
 
         if isinstance(method, SinglePointScanner):
@@ -100,8 +98,8 @@ class Gradients(rhf_grad.GradientsMixin):
         if self.verbose >= logger.INFO:
             self.dump_flags()
 
-        de = self.grad_elec(atmlst, log)
-        self.de = de + self.grad_nuc(atmlst=atmlst)
+        self.de = self.grad_elec(atmlst, log)
+
         if self.mol.symmetry:
             self.de = self.symmetrize(self.de, atmlst)
 
