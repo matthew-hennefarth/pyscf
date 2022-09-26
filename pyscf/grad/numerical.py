@@ -27,6 +27,9 @@ def grad_num(mc_grad, displacement=None, atmlst=None, verbose=logger.INFO):
     if atmlst is None:
         atmlst = range(mol.natm)
 
+    if displacement is None:
+        displacement = mc_grad.displacement
+
     de = np.zeros((len(atmlst), 3))
 
     # This is clearly trivially parallelizable and this loop can be unraveled.
@@ -104,7 +107,7 @@ class Gradients(rhf_grad.GradientsMixin):
         if self.verbose >= logger.INFO:
             self.dump_flags()
 
-        self.de = self.grad_num(atmlst, log)
+        self.de = self.grad_num(displacement=displacement, atmlst=atmlst, verbose=log)
 
         if self.mol.symmetry:
             self.de = self.symmetrize(self.de, atmlst)

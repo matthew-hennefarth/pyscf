@@ -41,7 +41,7 @@ class KnownValues(unittest.TestCase):
         analytical_method = hf.nuc_grad_method()
 
         ana_g = analytical_method.kernel()
-        num_g = numerical_method.kernel(displacement=0.001)
+        num_g = numerical_method.kernel(displacement=0.00001)
 
         print(num_g)
         print(ana_g)
